@@ -1,3 +1,5 @@
+# 外层图（ScriptTeamGraph）的单元测试
+# 内层子图通过 MagicMock 替换，专注验证外层路由和需求重跑逻辑
 from unittest.mock import MagicMock
 from agents.graphs.outer_graph import build_outer_graph
 from agents.graphs.states import OuterState
@@ -27,7 +29,7 @@ def _make_script():
 
 
 def test_outer_graph_success_first_try():
-    """内层子图第一次就通过，外层直接结束"""
+    """内层子图第一次就通过，外层直接结束，需求分析和内层各调用一次。"""
     mock_req = MagicMock()
     mock_req.analyze.return_value = _make_spec()
 
@@ -56,12 +58,13 @@ def test_outer_graph_success_first_try():
 
 
 def test_outer_graph_retries_requirement_on_inner_failure():
-    """内层失败时，外层重跑需求分析一次"""
+    """内层失败时，外层重跑需求分析一次，第二次内层通过后结束。"""
     mock_req = MagicMock()
     mock_req.analyze.return_value = _make_spec()
 
     mock_inner = MagicMock()
     mock_inner.invoke.side_effect = [
+        # 第一次：内层工程师重试耗尽，返回失败
         {
             "spec": _make_spec(),
             "script": _make_script(),
@@ -69,6 +72,7 @@ def test_outer_graph_retries_requirement_on_inner_failure():
             "engineer_retries": 2,
             "last_errors": ["持续错误"],
         },
+        # 第二次：需求重新分析后，内层通过
         {
             "spec": _make_spec(),
             "script": _make_script(),
@@ -89,12 +93,12 @@ def test_outer_graph_retries_requirement_on_inner_failure():
     result = graph.invoke(init)
 
     assert result["report"].passed is True
-    assert mock_req.analyze.call_count == 2
+    assert mock_req.analyze.call_count == 2   # 初次 + 1次重跑
     assert mock_inner.invoke.call_count == 2
 
 
 def test_outer_graph_fails_after_requirement_retry_exhausted():
-    """需求重跑1次后内层仍失败，外层返回失败报告"""
+    """需求重跑1次后内层仍失败，外层返回失败报告，不再继续重试。"""
     mock_req = MagicMock()
     mock_req.analyze.return_value = _make_spec()
 

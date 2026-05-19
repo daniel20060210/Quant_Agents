@@ -10,14 +10,16 @@ SYSTEM_PROMPT = """你是一个量化交易系统的测试工程师。
 
 
 class TestAgent(BaseAgent):
-    """测试Agent：验证脚本正确性并给出测试报告"""
+    """运行脚本并通过 LLM 审查代码质量，输出 TestReport。"""
 
     def test(self, script: GeneratedScript, spec: ScriptSpec) -> TestReport:
+        """先实际运行脚本，再让 LLM 结合运行结果做代码审查。"""
         run_result = self._run_script(script.file_path)
         report = self._review(script, spec, run_result)
         return report
 
     def _run_script(self, file_path: str) -> dict:
+        """subprocess 运行脚本，捕获 stdout/stderr，超时 30s。"""
         try:
             result = subprocess.run(
                 [sys.executable, file_path],
@@ -36,6 +38,7 @@ class TestAgent(BaseAgent):
             return {"returncode": -1, "stdout": "", "stderr": str(e)}
 
     def _review(self, script: GeneratedScript, spec: ScriptSpec, run_result: dict) -> TestReport:
+        """将代码、规格和运行结果一起发给 LLM，要求返回 JSON 格式的审查结论。"""
         user_prompt = f"""请审查以下Python脚本是否符合规格要求：
 
 【规格要求】

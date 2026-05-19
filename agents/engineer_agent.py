@@ -10,11 +10,12 @@ SYSTEM_PROMPT = """你是一个量化交易系统的Python工程师。
 
 
 class EngineerAgent(BaseAgent):
-    """工程师Agent：根据规格书编写Python脚本"""
+    """根据 ScriptSpec 编写 Python 脚本并保存到磁盘。"""
 
     output_dir = "scripts/generated"
 
     def write_script(self, spec: ScriptSpec) -> GeneratedScript:
+        """调用 LLM 生成代码，去除 markdown 包裹后写入文件，返回 GeneratedScript。"""
         user_prompt = f"""请根据以下规格书编写Python脚本：
 
 函数名：{spec.function_name}
@@ -42,6 +43,7 @@ class EngineerAgent(BaseAgent):
         )
 
     def _strip_markdown(self, code: str) -> str:
+        """去除 LLM 有时会输出的 ```python ... ``` 包裹。"""
         lines = code.strip().splitlines()
         if lines and lines[0].startswith("```"):
             lines = lines[1:]
@@ -50,6 +52,7 @@ class EngineerAgent(BaseAgent):
         return "\n".join(lines)
 
     def _save_script(self, function_name: str, code: str) -> str:
+        """按日期分目录保存，路径格式：scripts/generated/<YYYYMMDD>/<function_name>.py"""
         date_str = datetime.now().strftime("%Y%m%d")
         dir_path = os.path.join(self.output_dir, date_str)
         os.makedirs(dir_path, exist_ok=True)
@@ -59,6 +62,7 @@ class EngineerAgent(BaseAgent):
         return file_path
 
     def _extract_imports(self, code: str) -> list[str]:
+        """从代码中提取第三方包名（排除标准库），用于依赖记录。"""
         deps = []
         for line in code.splitlines():
             line = line.strip()

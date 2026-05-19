@@ -1,3 +1,5 @@
+# ScriptAgentTeam 的集成测试，验证对外接口 run() 的行为
+# 三个 Agent 均通过 MagicMock 替换，不产生真实 LLM 调用
 from unittest.mock import MagicMock
 from agents.script_team import ScriptAgentTeam
 from agents.models import ScriptRequest, ScriptSpec, GeneratedScript, TestReport, Param, TestCase
@@ -18,7 +20,7 @@ def _make_script():
 
 
 def test_script_team_run_returns_script_and_report():
-    """ScriptAgentTeam.run() 返回 (GeneratedScript, TestReport) 元组"""
+    """ScriptAgentTeam.run() 应返回 (GeneratedScript, TestReport) 元组，接口不因内部重构而改变。"""
     mock_req = MagicMock()
     mock_req.analyze.return_value = _make_spec()
 

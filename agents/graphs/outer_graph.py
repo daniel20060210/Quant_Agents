@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from agents.graphs.states import OuterState, InnerState
 from agents.requirement_agent import RequirementAgent
 
+# 需求分析节点最多重跑次数，超出后直接返回失败报告
 REQUIREMENT_RETRIES_LIMIT = 1
 
 
@@ -9,14 +10,25 @@ def build_outer_graph(
     requirement_agent: RequirementAgent | None = None,
     inner_graph=None,
 ):
+    """
+    构建外层图：requirement_node → inner_subgraph → 条件路由。
+
+    路由逻辑：
+      - 内层通过 → END
+      - 内层失败且未超重跑上限 → increment_requirement_retries → requirement_node（重新分析需求）
+      - 内层失败且已超上限 → END（返回失败报告）
+    """
     req_agent = requirement_agent or RequirementAgent()
+    # 延迟导入避免循环依赖，测试时可注入 mock inner_graph
     inner = inner_graph or _default_inner()
 
     def requirement_node(state: OuterState) -> OuterState:
+        """调用需求分析Agent，将自然语言请求转为 ScriptSpec。"""
         spec = req_agent.analyze(state["request"])
         return {**state, "spec": spec}
 
     def inner_subgraph_node(state: OuterState) -> OuterState:
+        """每次进入内层子图时重置 engineer_retries 和 last_errors，确保干净起点。"""
         inner_init: InnerState = {
             "spec": state["spec"],
             "script": None,
@@ -39,6 +51,7 @@ def build_outer_graph(
         return "end"
 
     def increment_requirement_retries(state: OuterState) -> OuterState:
+        """递增需求重跑计数，下一步回到 requirement_node 重新生成规格书。"""
         return {**state, "requirement_retries": state["requirement_retries"] + 1}
 
     builder = StateGraph(OuterState)

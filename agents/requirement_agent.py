@@ -8,9 +8,10 @@ SYSTEM_PROMPT = """你是一个量化交易系统的需求分析专家。
 
 
 class RequirementAgent(BaseAgent):
-    """需求分析Agent：将自然语言需求转化为结构化脚本规格书"""
+    """将自然语言需求转化为结构化 ScriptSpec，供 EngineerAgent 使用。"""
 
     def analyze(self, request: ScriptRequest) -> ScriptSpec:
+        """调用 LLM 生成规格书，解析 JSON 后返回 ScriptSpec。"""
         user_prompt = f"""请根据以下需求生成脚本规格书：
 
 任务描述：{request.task_description}

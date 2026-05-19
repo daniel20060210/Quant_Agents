@@ -4,6 +4,7 @@ from agents.engineer_agent import EngineerAgent
 from agents.test_agent import TestAgent
 from agents.models import ScriptSpec
 
+# 工程师节点最多重试次数（不含初次），超出后由外层决定是否重跑需求分析
 ENGINEER_RETRIES_LIMIT = 2
 
 
@@ -11,11 +12,20 @@ def build_inner_graph(
     engineer_agent: EngineerAgent | None = None,
     test_agent: TestAgent | None = None,
 ):
+    """
+    构建内层子图：engineer_node → test_node → 条件路由。
+
+    路由逻辑：
+      - 测试通过 → END
+      - 测试失败且未超重试上限 → increment_retries → engineer_node（注入错误反馈）
+      - 测试失败且已超上限 → END（外层图会决定是否重跑需求分析）
+    """
     engineer = engineer_agent or EngineerAgent()
     tester = test_agent or TestAgent()
 
     def engineer_node(state: InnerState) -> InnerState:
         spec = state["spec"]
+        # 重试时将上次测试错误追加到 logic_description，引导 LLM 修正
         if state["last_errors"]:
             feedback = "\n\n【上一版本的问题，请修正】\n错误：\n"
             feedback += "\n".join(f"- {e}" for e in state["last_errors"])
@@ -38,9 +48,11 @@ def build_inner_graph(
             return "end"
         if state["engineer_retries"] < ENGINEER_RETRIES_LIMIT:
             return "retry_engineer"
+        # 重试次数耗尽，通知外层升级处理
         return "exhausted"
 
     def increment_retries(state: InnerState) -> InnerState:
+        """递增重试计数，并将本次错误存入 last_errors 供下一轮工程师节点使用。"""
         return {
             **state,
             "engineer_retries": state["engineer_retries"] + 1,

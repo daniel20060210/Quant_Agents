@@ -1,4 +1,4 @@
-# MySQL 数据库连接配置
+# MySQL 数据库连接配置，用于沪深300行情数据存储
 DB_CONFIG = {
     "host": "localhost",
     "port": 3306,

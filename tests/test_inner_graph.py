@@ -1,3 +1,5 @@
+# 内层子图（EngineerTestGraph）的单元测试
+# 所有 LLM 调用均通过 MagicMock 替换，不产生真实 API 请求
 from unittest.mock import MagicMock
 from agents.graphs.inner_graph import build_inner_graph
 from agents.graphs.states import InnerState
@@ -5,6 +7,7 @@ from agents.models import ScriptSpec, GeneratedScript, TestReport, Param, TestCa
 
 
 def _make_spec(feedback=""):
+    """构造测试用 ScriptSpec，feedback 参数用于模拟错误注入后的规格书。"""
     return ScriptSpec(
         function_name="calc_ma",
         parameters=[Param(name="prices", type="list[float]", description="收盘价")],
@@ -15,11 +18,12 @@ def _make_spec(feedback=""):
 
 
 def _make_script():
+    """构造测试用 GeneratedScript，代码内容不重要，只验证流程。"""
     return GeneratedScript(file_path="scripts/generated/20260519/calc_ma.py", code="def calc_ma(): pass")
 
 
 def test_inner_graph_passes_on_first_try():
-    """测试Agent第一次就通过时，图直接结束"""
+    """测试Agent第一次就通过时，图直接结束，工程师和测试各调用一次。"""
     mock_engineer = MagicMock()
     mock_engineer.write_script.return_value = _make_script()
 
@@ -42,7 +46,7 @@ def test_inner_graph_passes_on_first_try():
 
 
 def test_inner_graph_retries_engineer_on_failure():
-    """测试Agent失败时，工程师最多重试2次"""
+    """测试Agent失败时，工程师最多重试2次，第3次通过后结束。"""
     mock_engineer = MagicMock()
     mock_engineer.write_script.return_value = _make_script()
 
@@ -64,11 +68,11 @@ def test_inner_graph_retries_engineer_on_failure():
     result = graph.invoke(init)
 
     assert result["report"].passed is True
-    assert mock_engineer.write_script.call_count == 3
+    assert mock_engineer.write_script.call_count == 3  # 初次 + 2次重试
 
 
 def test_inner_graph_exhausts_retries():
-    """工程师重试2次后仍失败，图结束并返回失败报告"""
+    """工程师重试2次后仍失败，图结束并返回失败报告，共调用3次 write_script。"""
     mock_engineer = MagicMock()
     mock_engineer.write_script.return_value = _make_script()
 
@@ -90,10 +94,11 @@ def test_inner_graph_exhausts_retries():
 
 
 def test_inner_graph_injects_errors_into_spec():
-    """重试时，上次错误应注入到 spec.logic_description"""
+    """重试时，上次测试错误应追加到 spec.logic_description，引导工程师修正。"""
     injected_specs = []
 
     def capture_spec(spec):
+        # 记录每次调用时的 logic_description，验证错误是否被注入
         injected_specs.append(spec.logic_description)
         return _make_script()
 
@@ -116,4 +121,5 @@ def test_inner_graph_injects_errors_into_spec():
     }
     graph.invoke(init)
 
+    # 第二次调用时，logic_description 应包含上次的错误信息
     assert "错误X" in injected_specs[1]
