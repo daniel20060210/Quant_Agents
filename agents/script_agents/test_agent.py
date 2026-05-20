@@ -1,9 +1,13 @@
+# agents/script_agents/test_agent.py
+# 测试Agent：运行脚本并通过 LLM 审查代码质量，输出 TestReport。
+# 从 agents/test_agent.py 迁移而来，import 路径已更新为绝对路径。
 import subprocess
 import sys
 import json
-from .base_agent import BaseAgent
-from .models import GeneratedScript, ScriptSpec, TestReport
+from agents.base_agent import BaseAgent
+from agents.models import GeneratedScript, ScriptSpec, TestReport
 
+# 测试Agent 的系统提示，要求输出 JSON 格式的审查结论
 SYSTEM_PROMPT = """你是一个量化交易系统的测试工程师。
 你的职责是审查Python脚本的代码质量，并结合运行结果判断脚本是否符合规格要求。
 输出必须是合法的 JSON，不要包含任何额外说明。"""
@@ -15,8 +19,7 @@ class TestAgent(BaseAgent):
     def test(self, script: GeneratedScript, spec: ScriptSpec) -> TestReport:
         """先实际运行脚本，再让 LLM 结合运行结果做代码审查。"""
         run_result = self._run_script(script.file_path)
-        report = self._review(script, spec, run_result)
-        return report
+        return self._review(script, spec, run_result)
 
     def _run_script(self, file_path: str) -> dict:
         """subprocess 运行脚本，捕获 stdout/stderr，超时 30s。"""

@@ -1,9 +1,12 @@
+# agents/script_agents/engineer_agent.py
+# 工程师Agent：根据 ScriptSpec 编写 Python 脚本并保存到磁盘。
+# 从 agents/engineer_agent.py 迁移而来，import 路径已更新为绝对路径。
 import os
-import textwrap
 from datetime import datetime
-from .base_agent import BaseAgent
-from .models import ScriptSpec, GeneratedScript
+from agents.base_agent import BaseAgent
+from agents.models import ScriptSpec, GeneratedScript
 
+# 工程师Agent 的系统提示，要求只输出纯 Python 代码
 SYSTEM_PROMPT = """你是一个量化交易系统的Python工程师。
 你的职责是根据规格书编写高质量、可直接运行的Python脚本。
 只输出纯Python代码，不要包含任何说明文字或markdown代码块标记。"""
@@ -12,6 +15,7 @@ SYSTEM_PROMPT = """你是一个量化交易系统的Python工程师。
 class EngineerAgent(BaseAgent):
     """根据 ScriptSpec 编写 Python 脚本并保存到磁盘。"""
 
+    # 生成脚本的根目录，按日期子目录组织
     output_dir = "scripts/generated"
 
     def write_script(self, spec: ScriptSpec) -> GeneratedScript:
@@ -32,7 +36,6 @@ class EngineerAgent(BaseAgent):
 
         code = self._call_llm(SYSTEM_PROMPT, user_prompt)
         code = self._strip_markdown(code)
-
         file_path = self._save_script(spec.function_name, code)
         dependencies = self._extract_imports(code)
 

@@ -13,6 +13,9 @@ python -m pytest tests/test_inner_graph.py -v
 
 # Run a single test
 python -m pytest tests/test_inner_graph.py::test_inner_graph_passes_on_first_try -v
+
+# Run script_agents sub-package tests
+python -m pytest tests/script_agents/ -v
 ```
 
 ## Environment
@@ -30,25 +33,34 @@ This is a quantitative trading Agent system. The current implementation covers t
 
 ### Script Agent Team (`agents/`)
 
-Three LLM-backed agents coordinated by a LangGraph multi-graph:
+Four LLM-backed agents coordinated by a LangGraph multi-graph:
 
 ```
 ScriptAgentTeam.run(ScriptRequest)
-  └── OuterGraph (outer_graph.py)
-        ├── requirement_node  → RequirementAgent: natural language → ScriptSpec (JSON)
-        └── inner_subgraph    → InnerGraph (inner_graph.py)
+  └── OuterGraph (graphs/outer_graph.py)
+        ├── alignment_node      → RequirementAgent.clarify() + TradingAgentResponder.answer()
+        │                         多轮需求对齐，最多 3 轮，输出 aligned_request
+        ├── requirement_node    → RequirementAgent.analyze(aligned_request) → ScriptSpec
+        └── inner_subgraph      → InnerGraph (graphs/inner_graph.py)
               ├── engineer_node → EngineerAgent: ScriptSpec → .py file
               └── test_node     → TestAgent: runs script + LLM review → TestReport
 ```
 
-**Retry strategy:** engineer retries up to 2×; if still failing, outer graph re-runs requirement analysis once. Max total LLM calls per request: `(1 + 1) × (3 + 1) = 8`.
+**Retry strategy:** engineer retries up to 2×; if still failing, outer graph re-runs requirement analysis once (skipping alignment). Max total LLM calls per request: `3 (alignment) + (1+1) × (3+1) = 11`.
+
+**Package layout:**
+- `agents/script_agents/` — 所有脚本生成相关 Agent（RequirementAgent、EngineerAgent、TestAgent、TradingAgentResponder）
+- `agents/graphs/` — LangGraph 图定义（alignment_node、inner_graph、outer_graph、states）
+- `agents/base_agent.py` — BaseAgent 基类，封装 DeepSeek 调用
+- `agents/models.py` — 数据结构（ScriptRequest、ScriptSpec、GeneratedScript、TestReport）
+- `agents/script_team.py` — 对外入口，`ScriptAgentTeam.run()` 接口
 
 **State types** (`agents/graphs/states.py`):
-- `OuterState` — request, spec, script, report, requirement_retries
+- `OuterState` — request, aligned_request, alignment_history, spec, script, report, requirement_retries
 - `InnerState` — spec, script, report, engineer_retries, last_errors
 
 **Data flow** (`agents/models.py`):
-`ScriptRequest` → `ScriptSpec` → `GeneratedScript` (saved to `scripts/generated/<date>/`) → `TestReport`
+`ScriptRequest` → `aligned_request`（含 Q&A 补充）→ `ScriptSpec` → `GeneratedScript`（saved to `scripts/generated/<date>/`）→ `TestReport`
 
 ### Database (`db/`)
 

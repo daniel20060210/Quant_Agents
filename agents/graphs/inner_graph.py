@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 from agents.graphs.states import InnerState
-from agents.engineer_agent import EngineerAgent
-from agents.test_agent import TestAgent
+from agents.script_agents.engineer_agent import EngineerAgent
+from agents.script_agents.test_agent import TestAgent
 from agents.models import ScriptSpec
 
 # 工程师节点最多重试次数（不含初次），超出后由外层决定是否重跑需求分析

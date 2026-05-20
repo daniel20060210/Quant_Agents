@@ -4,11 +4,13 @@ from agents.models import ScriptRequest, ScriptSpec, GeneratedScript, TestReport
 
 class OuterState(TypedDict):
     """外层图（ScriptTeamGraph）的共享状态。"""
-    request: ScriptRequest          # 原始任务，贯穿整个流程不变
-    spec: Optional[ScriptSpec]      # 需求分析节点输出，内层失败重跑时会被覆盖
-    script: Optional[GeneratedScript]  # 内层子图最终生成的脚本
-    report: Optional[TestReport]    # 内层子图最终的测试报告
-    requirement_retries: int        # 已重跑需求分析的次数，上限 REQUIREMENT_RETRIES_LIMIT=1
+    request: ScriptRequest                    # 原始任务，贯穿整个流程不变
+    aligned_request: Optional[ScriptRequest]  # 对齐后的增强请求，由 alignment_node 填充，requirement_node 使用
+    alignment_history: list[dict]             # 每轮 Q&A，格式：[{"questions": [...], "answers": [...]}]
+    spec: Optional[ScriptSpec]                # 需求分析节点输出，内层失败重跑时会被覆盖
+    script: Optional[GeneratedScript]         # 内层子图最终生成的脚本
+    report: Optional[TestReport]              # 内层子图最终的测试报告
+    requirement_retries: int                  # 已重跑需求分析的次数，上限 REQUIREMENT_RETRIES_LIMIT=1
 
 
 class InnerState(TypedDict):

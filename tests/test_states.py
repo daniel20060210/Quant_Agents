@@ -1,3 +1,4 @@
+# tests/test_states.py
 # 验证 OuterState 和 InnerState TypedDict 的字段定义是否正确
 from agents.graphs.states import OuterState, InnerState
 from agents.models import ScriptRequest, ScriptSpec, GeneratedScript, TestReport, Param, TestCase
@@ -27,6 +28,8 @@ def test_outer_state_defaults():
     # 确认外层状态初始值：spec 为 None，重试计数为 0
     state: OuterState = {
         "request": _make_request(),
+        "aligned_request": None,
+        "alignment_history": [],
         "spec": None,
         "script": None,
         "report": None,
@@ -34,6 +37,21 @@ def test_outer_state_defaults():
     }
     assert state["requirement_retries"] == 0
     assert state["spec"] is None
+
+
+def test_outer_state_alignment_fields():
+    # 确认新增的对齐字段初始值正确
+    state: OuterState = {
+        "request": _make_request(),
+        "aligned_request": None,
+        "alignment_history": [],
+        "spec": None,
+        "script": None,
+        "report": None,
+        "requirement_retries": 0,
+    }
+    assert state["aligned_request"] is None
+    assert state["alignment_history"] == []
 
 
 def test_inner_state_defaults():
