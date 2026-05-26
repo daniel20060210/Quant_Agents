@@ -16,6 +16,9 @@ python -m pytest tests/test_inner_graph.py::test_inner_graph_passes_on_first_try
 
 # Run script_agents sub-package tests
 python -m pytest tests/script_agents/ -v
+
+# Run trading package tests
+python -m pytest tests/trading/ -v
 ```
 
 ## Environment
@@ -66,6 +69,32 @@ ScriptAgentTeam.run(ScriptRequest)
 
 MySQL connection helpers. Config in `db/config.py` (host/port/user/password/database). Used for HS300 market data — not yet wired into the Agent pipeline.
 
+### Trading Agent (`trading/`)
+
+Six modules coordinated by `TradingAgent.run()`:
+
+```
+TradingAgent.run()
+  ├── MarketDataFeed   → 从 MySQL csi300_daily 逐日迭代
+  ├── Broker           → 全仓模拟开平仓（初始资金 100,000）
+  ├── RiskManager      → 硬性止损 ≤ 2%（注意：doc/架构.md 写的 1% 是旧值，以代码为准）
+  ├── SkillsManager    → 读写 trading/skills.md（用户手动维护初始内容）
+  ├── Reflection       → 连续 3 笔亏损强制触发，可写 <!-- NEED_SCRIPT: ... --> 标记调用 ScriptAgentTeam
+  └── ScriptAgentTeam  → 通过依赖注入传入，trading/ 包不直接 import agents/
+```
+
 ### Planned but not yet implemented
 
-See `doc/架构.md` for the full system design including: `TradingAgent`, `RiskManager` (hard ≤1% stop-loss), `Reflection` (triggers on 3 consecutive losses or 6% drawdown), `FastAPI` service layer, and WebSocket push events.
+FastAPI 服务层、WebSocket 推送事件。见 `doc/架构.md`。
+
+---
+
+## Code Style
+
+**Comments are required** on all code: file-header comment, class docstring, method docstring, inline comments for non-obvious logic.
+
+## Testing Patterns
+
+- Mock LLM calls: `patch.object(agent, "_call_llm", return_value=json.dumps({...}))`
+- Mock DB: `patch("trading.data.get_connection", return_value=mock_conn)` with `mock_conn.cursor().__enter__` returning a mock cursor
+- All tests use `MagicMock` for dependencies — no real API or DB calls

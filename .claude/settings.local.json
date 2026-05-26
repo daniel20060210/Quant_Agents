@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(python *)",
+      "Skill(superpowers:writing-plans)"
+    ]
+  }
+}
